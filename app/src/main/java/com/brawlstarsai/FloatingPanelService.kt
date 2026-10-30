@@ -99,7 +99,15 @@ class FloatingPanelService : Service() {
             setPadding(0, 2, 0, 3)
         }
         container.addView(visionStatus)
-        decisionStatus = TextView(this).apply {\n            text = "Decyzja • oczekiwanie"\n            setTextColor(Color.rgb(245, 210, 130))\n            textSize = 9f\n            maxLines = 3\n            setPadding(0, 2, 0, 3)\n        }\n        container.addView(decisionStatus)\n        container.addView(toggle)
+        decisionStatus = TextView(this).apply {
+            text = "Decyzja • oczekiwanie"
+            setTextColor(Color.rgb(245, 210, 130))
+            textSize = 9f
+            maxLines = 3
+            setPadding(0, 2, 0, 3)
+        }
+        container.addView(decisionStatus)
+        container.addView(toggle)
         container.addView(close)
 
         val windowType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
