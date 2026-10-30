@@ -2,6 +2,7 @@ package com.brawlstarsai
 
 import android.app.Service
 import android.content.Intent
+import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
@@ -12,14 +13,12 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.graphics.Color
 
 class FloatingPanelService : Service() {
     private lateinit var windowManager: WindowManager
     private var panel: View? = null
     private var isAiEnabled = false
     private lateinit var status: TextView
-    private lateinit var toggle: Button
 
     override fun onCreate() {
         super.onCreate()
@@ -27,6 +26,7 @@ class FloatingPanelService : Service() {
         showPanel()
     }
 
+    @Suppress("DEPRECATION")
     private fun showPanel() {
         if (panel != null) return
 
@@ -41,7 +41,7 @@ class FloatingPanelService : Service() {
             setTextColor(Color.WHITE)
             textSize = 13f
         }
-        toggle = Button(this).apply {
+        val toggle = Button(this).apply {
             text = "AI: OFF"
             setOnClickListener {
                 isAiEnabled = !isAiEnabled
@@ -57,14 +57,15 @@ class FloatingPanelService : Service() {
         container.addView(toggle)
         container.addView(close)
 
+        val windowType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            else
-                @Suppress("DEPRECATION")
-                WindowManager.LayoutParams.TYPE_PHONE,
+            windowType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
