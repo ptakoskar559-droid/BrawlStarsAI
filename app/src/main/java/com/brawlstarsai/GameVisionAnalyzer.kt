@@ -72,7 +72,8 @@ object GameVisionAnalyzer {
                     x = end
                 }
             }
-            val merged = mergeRows(candidates)
+            val merged = mergeRows(candidates.filter { it.color == "zielony" }) +
+                mergeRows(candidates.filter { it.color == "czerwony" })
             return merged.map { item ->
                 val halfWidth = item.width / 2f
                 val type = if (item.color == "czerwony") EntityType.ENEMY else EntityType.ALLY
