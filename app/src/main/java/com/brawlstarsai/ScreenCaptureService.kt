@@ -6,14 +6,17 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
+import android.media.Image
 import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.DisplayMetrics
 import android.view.WindowManager
 
@@ -21,6 +24,7 @@ object ScreenVisionState {
     @Volatile var active: Boolean = false
     @Volatile var frameCount: Long = 0
     @Volatile var dimensions: String = "—"
+    @Volatile var latestFrame: Bitmap? = null
 }
 
 class ScreenCaptureService : Service() {
@@ -34,6 +38,7 @@ class ScreenCaptureService : Service() {
     private var projection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var imageReader: ImageReader? = null
+    private var lastPreviewAt: Long = 0L
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent == null) {
@@ -74,8 +79,17 @@ class ScreenCaptureService : Service() {
         reader.setOnImageAvailableListener({ source ->
             val image = source.acquireLatestImage()
             if (image != null) {
-                ScreenVisionState.frameCount += 1
-                image.close()
+                try {
+                    ScreenVisionState.frameCount += 1
+                    val now = SystemClock.elapsedRealtime()
+                    // Keep the live preview lightweight: create at most two preview bitmaps per second.
+                    if (now - lastPreviewAt >= 500L) {
+                        imageToBitmap(image)?.let { ScreenVisionState.latestFrame = it }
+                        lastPreviewAt = now
+                    }
+                } finally {
+                    image.close()
+                }
             }
         }, null)
 
@@ -97,9 +111,36 @@ class ScreenCaptureService : Service() {
         )
 
         ScreenVisionState.frameCount = 0
+        ScreenVisionState.latestFrame = null
         ScreenVisionState.dimensions = "${width} × ${height}"
         ScreenVisionState.active = virtualDisplay != null
         if (!ScreenVisionState.active) stopSelf()
+    }
+
+    private fun imageToBitmap(image: Image): Bitmap? {
+        val plane = image.planes.firstOrNull() ?: return null
+        val buffer = plane.buffer
+        val pixelStride = plane.pixelStride
+        val rowStride = plane.rowStride
+        if (pixelStride <= 0 || rowStride <= 0) return null
+        val paddedWidth = rowStride / pixelStride
+        if (paddedWidth < image.width) return null
+
+        buffer.rewind()
+        val paddedBitmap = Bitmap.createBitmap(
+            paddedWidth,
+            image.height,
+            Bitmap.Config.ARGB_8888
+        )
+        paddedBitmap.copyPixelsFromBuffer(buffer)
+        val result = if (paddedWidth == image.width) {
+            paddedBitmap
+        } else {
+            Bitmap.createBitmap(paddedBitmap, 0, 0, image.width, image.height).also {
+                paddedBitmap.recycle()
+            }
+        }
+        return result
     }
 
     private fun buildNotification(): Notification {
@@ -127,6 +168,7 @@ class ScreenCaptureService : Service() {
 
     override fun onDestroy() {
         ScreenVisionState.active = false
+        ScreenVisionState.latestFrame = null
         virtualDisplay?.release()
         virtualDisplay = null
         imageReader?.setOnImageAvailableListener(null, null)
