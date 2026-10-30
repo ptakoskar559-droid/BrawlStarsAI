@@ -35,7 +35,7 @@ class FloatingPanelService : Service() {
                     "OCR • widzenie wyłączone"
                 }
                 visionStatus.text = ScreenVisionState.objectSummary.take(260)
-                decisionStatus.text = ScreenVisionState.decisionSummary.take(180)
+                decisionStatus.text = ScreenVisionState.decisionSummary.replace("\\\\n", "\\n").take(180)
                 handler.postDelayed(this, 800L)
             }
         }
