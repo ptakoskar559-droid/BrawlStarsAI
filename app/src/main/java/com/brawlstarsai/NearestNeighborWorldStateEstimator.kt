@@ -56,8 +56,7 @@ class NearestNeighborWorldStateEstimator(
             updatedAtMillis = snapshot.capturedAtMillis,
             entities = stillVisible,
             hud = snapshot.hud,
-            gameMode = snapshot.hud.gameMode,
-            objective = snapshot.hud.matchResult
+            gameMode = snapshot.hud.gameMode
         )
     }
 
