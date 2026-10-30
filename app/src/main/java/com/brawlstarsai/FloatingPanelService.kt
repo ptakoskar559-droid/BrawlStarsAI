@@ -5,7 +5,9 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -19,6 +21,21 @@ class FloatingPanelService : Service() {
     private var panel: View? = null
     private var isAiEnabled = false
     private lateinit var status: TextView
+    private lateinit var ocrStatus: TextView
+    private val handler = Handler(Looper.getMainLooper())
+    private val refreshOcr = object : Runnable {
+        override fun run() {
+            if (panel != null) {
+                val text = ScreenVisionState.recognizedText
+                ocrStatus.text = if (ScreenVisionState.active) {
+                    "OCR • " + if (text.isBlank()) "analizuję..." else text.take(220)
+                } else {
+                    "OCR • widzenie wyłączone"
+                }
+                handler.postDelayed(this, 800L)
+            }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -41,6 +58,13 @@ class FloatingPanelService : Service() {
             setTextColor(Color.WHITE)
             textSize = 13f
         }
+        ocrStatus = TextView(this).apply {
+            text = "OCR • oczekiwanie"
+            setTextColor(Color.WHITE)
+            textSize = 11f
+            maxLines = 5
+            setPadding(0, 6, 0, 6)
+        }
         val toggle = Button(this).apply {
             text = "AI: OFF"
             setOnClickListener {
@@ -54,6 +78,7 @@ class FloatingPanelService : Service() {
             setOnClickListener { stopSelf() }
         }
         container.addView(status)
+        container.addView(ocrStatus)
         container.addView(toggle)
         container.addView(close)
 
@@ -67,7 +92,8 @@ class FloatingPanelService : Service() {
             WindowManager.LayoutParams.WRAP_CONTENT,
             windowType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_SECURE,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -103,6 +129,7 @@ class FloatingPanelService : Service() {
 
         panel = container
         windowManager.addView(container, params)
+        handler.post(refreshOcr)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -111,6 +138,7 @@ class FloatingPanelService : Service() {
     }
 
     override fun onDestroy() {
+        handler.removeCallbacks(refreshOcr)
         panel?.let {
             try { windowManager.removeView(it) } catch (_: Exception) { }
         }
