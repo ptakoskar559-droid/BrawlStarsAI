@@ -95,6 +95,38 @@ class MainActivity : ComponentActivity() {
 
                         OutlinedButton(
                             onClick = {
+                                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                message = "W ustawieniach Androida włącz usługę BrawlStarsAI."
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Skonfiguruj sterowanie Android") }
+
+                        Button(
+                            onClick = {
+                                if (GameInputAccessibilityService.isConnected()) {
+                                    AgentControlState.arm()
+                                    message = "Auto-aim uzbrojony. Włącz widzenie ekranu i testuj w przyjaznym meczu."
+                                } else {
+                                    message = "Najpierw włącz usługę BrawlStarsAI w ustawieniach dostępności Androida."
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !AgentControlState.isArmed()
+                        ) { Text("Uzbrój sterowanie") }
+
+                        OutlinedButton(
+                            onClick = {
+                                AgentControlState.disarm("Ręczne zatrzymanie")
+                                message = "Sterowanie natychmiast wyłączone."
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("AWARYJNE STOP") }
+
+                        Text("Sterowanie: " + AgentControlState.lastInputStatus)
+                        Text("Prototyp: auto-aim do wykrytych czerwonych pasków HP. Ruch postaci nie jest jeszcze sterowany.")
+
+                        OutlinedButton(
+                            onClick = {
                                 stopService(Intent(this@MainActivity, FloatingPanelService::class.java))
                                 message = "Panel został wyłączony."
                             },

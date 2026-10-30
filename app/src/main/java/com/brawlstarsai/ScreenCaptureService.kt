@@ -47,7 +47,12 @@ class ScreenCaptureService : Service() {
     private var lastPreviewAt: Long = 0L
     private var lastOcrAt: Long = 0L
     private var lastVisionAt: Long = 0L
+    private var lastActionAt: Long = 0L
+    private val minimumAttackIntervalMillis = 280L
     private val textRecognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
+    private val worldStateEstimator = NearestNeighborWorldStateEstimator()
+    private val combatPlanner = BasicCombatPlanner()
+    private val actionDispatcher by lazy { AccessibilityAgentDispatcher(this) }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent == null) {
@@ -91,24 +96,57 @@ class ScreenCaptureService : Service() {
                 try {
                     ScreenVisionState.frameCount += 1
                     val now = SystemClock.elapsedRealtime()
-                    // Keep the live preview lightweight: create at most two preview bitmaps per second.
-                    if (now - lastPreviewAt >= 500L) {
+                    // Analyze fresh frames continuously (~5-6 Hz); preview and OCR remain throttled.
+                    val shouldAnalyze = now - lastVisionAt >= 180L
+                    val shouldPreview = now - lastPreviewAt >= 500L
+                    if (shouldAnalyze || shouldPreview) {
                         imageToBitmap(image)?.let { frame ->
-                            ScreenVisionState.latestFrame = frame
+                            if (shouldPreview) {
+                                ScreenVisionState.latestFrame = frame
+                                lastPreviewAt = now
+                            }
                             if (now - lastOcrAt >= 1000L) {
                                 runTextRecognition(frame)
                                 lastOcrAt = now
                             }
-                            if (now - lastVisionAt >= 1000L) {
-                                ScreenVisionState.objectSummary = GameVisionAnalyzer.analyze(frame)
+                            if (shouldAnalyze) {
+                                val detections = GameVisionAnalyzer.detectEntities(frame)
+                                val hud = GameHudParser.parse(ScreenVisionState.recognizedText)
+                                val worldState = worldStateEstimator.update(
+                                    PerceptionSnapshot(
+                                        capturedAtMillis = now,
+                                        detections = detections,
+                                        hud = hud,
+                                        recognizedText = ScreenVisionState.recognizedText
+                                    )
+                                )
+                                val allyTracks = worldState.entities.count { it.type == EntityType.ALLY }
+                                val enemyTracks = worldState.entities.count { it.type == EntityType.ENEMY }
+                                if (AgentControlState.isArmed() && now - lastActionAt >= minimumAttackIntervalMillis) {
+                                    val plan = combatPlanner.plan(worldState, now)
+                                    if (plan.action.type == AgentActionType.ATTACK) {
+                                        val result = actionDispatcher.dispatch(plan, worldState, now)
+                                        AgentControlState.lastInputStatus = when (result) {
+                                            ActionDispatchResult.Executed -> "Agent: analiza na żywo, koryguje cel"
+                                            is ActionDispatchResult.Rejected -> "Agent: " + result.reason
+                                            ActionDispatchResult.Cancelled -> "Agent: akcja anulowana"
+                                        }
+                                        if (result == ActionDispatchResult.Executed) lastActionAt = now
+                                    } else {
+                                        AgentControlState.lastInputStatus = "Agent: brak świeżego celu — obserwacja"
+                                    }
+                                }
+                                ScreenVisionState.objectSummary = GameVisionAnalyzer.analyze(frame) +
+                                    "\nŚledzone kandydaty HP: sojusznicy=$allyTracks, przeciwnicy=$enemyTracks" +
+                                    "\n" + GameHudParser.summary(hud)
                                 ScreenVisionState.decisionSummary = GameDecisionEngine.analyze(
                                     ScreenVisionState.recognizedText,
                                     ScreenVisionState.objectSummary
                                 )
                                 lastVisionAt = now
                             }
+                            if (frame !== ScreenVisionState.latestFrame && !frame.isRecycled) frame.recycle()
                         }
-                        lastPreviewAt = now
                     }
                 } finally {
                     image.close()
@@ -212,6 +250,7 @@ class ScreenCaptureService : Service() {
     }
 
     override fun onDestroy() {
+        AgentControlState.disarm("Przechwytywanie zatrzymane — agent wyłączony")
         ScreenVisionState.active = false
         ScreenVisionState.latestFrame = null
         ScreenVisionState.recognizedText = "Przechwytywanie wyłączone."
