@@ -48,6 +48,7 @@ class ScreenCaptureService : Service() {
     private var lastOcrAt: Long = 0L
     private var lastVisionAt: Long = 0L
     private val textRecognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
+    private val worldStateEstimator = NearestNeighborWorldStateEstimator()
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent == null) {
@@ -100,7 +101,14 @@ class ScreenCaptureService : Service() {
                                 lastOcrAt = now
                             }
                             if (now - lastVisionAt >= 1000L) {
-                                ScreenVisionState.objectSummary = GameVisionAnalyzer.analyze(frame)
+                                val detections = GameVisionAnalyzer.detectEntities(frame)
+                                val worldState = worldStateEstimator.update(
+                                    PerceptionSnapshot(now, detections, HudState())
+                                )
+                                val allyTracks = worldState.entities.count { it.type == EntityType.ALLY }
+                                val enemyTracks = worldState.entities.count { it.type == EntityType.ENEMY }
+                                ScreenVisionState.objectSummary = GameVisionAnalyzer.analyze(frame) +
+                                    "\\nŚledzone kandydaty HP: sojusznicy=$allyTracks, przeciwnicy=$enemyTracks"
                                 ScreenVisionState.decisionSummary = GameDecisionEngine.analyze(
                                     ScreenVisionState.recognizedText,
                                     ScreenVisionState.objectSummary
