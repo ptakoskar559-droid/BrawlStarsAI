@@ -51,23 +51,27 @@ class FloatingPanelService : Service() {
 
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(14, 10, 14, 10)
+            setPadding(8, 6, 8, 6)
             setBackgroundColor(Color.rgb(28, 32, 42))
         }
 
         status = TextView(this).apply {
             text = "BrawlStarsAI • GOTOWY"
             setTextColor(Color.WHITE)
-            textSize = 13f
+            textSize = 10f
         }
         ocrStatus = TextView(this).apply {
             text = "OCR • oczekiwanie"
             setTextColor(Color.WHITE)
-            textSize = 11f
-            maxLines = 5
-            setPadding(0, 6, 0, 6)
+            textSize = 9f
+            maxLines = 3
+            setPadding(0, 3, 0, 3)
         }
         val toggle = Button(this).apply {
+            textSize = 10f
+            minHeight = 0
+            minimumHeight = 0
+            setPadding(6, 0, 6, 0)
             text = "AI: OFF"
             setOnClickListener {
                 isAiEnabled = !isAiEnabled
@@ -76,6 +80,10 @@ class FloatingPanelService : Service() {
             }
         }
         val close = Button(this).apply {
+            textSize = 10f
+            minHeight = 0
+            minimumHeight = 0
+            setPadding(6, 0, 6, 0)
             text = "ZAMKNIJ PANEL"
             setOnClickListener { stopSelf() }
         }
@@ -84,9 +92,9 @@ class FloatingPanelService : Service() {
         visionStatus = TextView(this).apply {
             text = "Game Vision • oczekiwanie"
             setTextColor(Color.rgb(150, 230, 170))
-            textSize = 10f
-            maxLines = 4
-            setPadding(0, 4, 0, 6)
+            textSize = 8f
+            maxLines = 2
+            setPadding(0, 2, 0, 3)
         }
         container.addView(visionStatus)
         container.addView(toggle)
@@ -98,7 +106,7 @@ class FloatingPanelService : Service() {
             WindowManager.LayoutParams.TYPE_PHONE
         }
         val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            (190 * resources.displayMetrics.density).toInt(),
             WindowManager.LayoutParams.WRAP_CONTENT,
             windowType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
