@@ -22,6 +22,7 @@ class FloatingPanelService : Service() {
     private var isAiEnabled = false
     private lateinit var status: TextView
     private lateinit var ocrStatus: TextView
+    private lateinit var visionStatus: TextView
     private val handler = Handler(Looper.getMainLooper())
     private val refreshOcr = object : Runnable {
         override fun run() {
@@ -32,6 +33,7 @@ class FloatingPanelService : Service() {
                 } else {
                     "OCR • widzenie wyłączone"
                 }
+                visionStatus.text = ScreenVisionState.objectSummary.take(260)
                 handler.postDelayed(this, 800L)
             }
         }
@@ -79,6 +81,14 @@ class FloatingPanelService : Service() {
         }
         container.addView(status)
         container.addView(ocrStatus)
+        visionStatus = TextView(this).apply {
+            text = "Game Vision • oczekiwanie"
+            setTextColor(Color.rgb(150, 230, 170))
+            textSize = 10f
+            maxLines = 4
+            setPadding(0, 4, 0, 6)
+        }
+        container.addView(visionStatus)
         container.addView(toggle)
         container.addView(close)
 
