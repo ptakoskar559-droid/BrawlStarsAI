@@ -41,6 +41,26 @@ class GameInputAccessibilityService : AccessibilityService() {
 
         fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, durationMillis: Long = 350L): Boolean =
             instance?.dispatchLine(x1, y1, x2, y2, durationMillis) ?: false
+
+        /** Brawl Stars landscape layout: drag the attack control toward the detected target. */
+        fun aimAndAttack(
+            targetXNormalized: Float,
+            targetYNormalized: Float,
+            screenWidth: Float,
+            screenHeight: Float,
+            durationMillis: Long
+        ): Boolean {
+            val service = instance ?: return false
+            val startX = screenWidth * 0.85f
+            val startY = screenHeight * 0.64f
+            return service.dispatchLine(
+                startX,
+                startY,
+                targetXNormalized.coerceIn(0f, 1f) * screenWidth,
+                targetYNormalized.coerceIn(0f, 1f) * screenHeight,
+                durationMillis
+            )
+        }
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
