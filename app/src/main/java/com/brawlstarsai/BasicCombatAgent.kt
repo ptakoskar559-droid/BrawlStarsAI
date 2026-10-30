@@ -1,46 +1,59 @@
 package com.brawlstarsai
 
 import android.content.Context
+import kotlin.math.hypot
 
 /**
- * First conservative closed-loop prototype.
- * It can auto-aim at a detected red health-bar candidate; it does not identify brawlers
- * and deliberately does not move until player-position detection is implemented.
+ * Closed-loop attack planner. Re-evaluates the current tracked target on every fresh
+ * perception update and leads moving targets using their measured screen-space velocity.
  */
-class BasicCombatPlanner : TacticalPlanner {
+class BasicCombatPlanner(
+    private val predictionHorizonSeconds: Float = 0.22f,
+    private val minimumTrackConfidence: Float = 0.40f
+) : TacticalPlanner {
     override fun plan(state: WorldState, nowMillis: Long): AgentPlan {
         val target = state.entities
-            .filter { it.type == EntityType.ENEMY && it.confidence >= 0.40f }
+            .filter {
+                it.type == EntityType.ENEMY &&
+                    it.confidence >= minimumTrackConfidence &&
+                    nowMillis - it.lastSeenAtMillis <= 350L
+            }
             .minByOrNull { entity ->
                 val x = (entity.bounds.left + entity.bounds.right) / 2f
                 val y = (entity.bounds.top + entity.bounds.bottom) / 2f
-                kotlin.math.hypot(x - 0.5f, y - 0.5f)
+                hypot(x - 0.5f, y - 0.5f)
             }
 
         if (target == null) {
             return AgentPlan(
                 createdAtMillis = nowMillis,
-                expiresAtMillis = nowMillis + 500L,
+                expiresAtMillis = nowMillis + 250L,
                 action = AgentAction(AgentActionType.OBSERVE),
                 confidence = 0.25f,
-                rationale = "Brak wiarygodnego kandydata przeciwnika; obserwuj"
+                rationale = "Brak świeżego celu; ponowna obserwacja"
             )
         }
 
-        val targetX = (target.bounds.left + target.bounds.right) / 2f
-        // Health bars are above characters; aim slightly below the detected bar.
-        val targetY = (target.bounds.bottom + 0.055f).coerceIn(0.05f, 0.95f)
+        val ageSeconds = ((nowMillis - target.lastSeenAtMillis).coerceAtLeast(0L) / 1_000f)
+        val leadSeconds = (predictionHorizonSeconds - ageSeconds).coerceAtLeast(0f)
+        val currentX = (target.bounds.left + target.bounds.right) / 2f
+        val currentY = target.bounds.bottom + 0.055f
+        val velocityX = target.velocityXPerSecond ?: 0f
+        val velocityY = target.velocityYPerSecond ?: 0f
+        val predictedX = (currentX + velocityX * leadSeconds).coerceIn(0.03f, 0.97f)
+        val predictedY = (currentY + velocityY * leadSeconds).coerceIn(0.08f, 0.92f)
+
         return AgentPlan(
             createdAtMillis = nowMillis,
-            expiresAtMillis = nowMillis + 700L,
+            expiresAtMillis = nowMillis + 220L,
             action = AgentAction(
                 type = AgentActionType.ATTACK,
-                targetXNormalized = targetX,
-                targetYNormalized = targetY,
-                durationMillis = 180L
+                targetXNormalized = predictedX,
+                targetYNormalized = predictedY,
+                durationMillis = 110L
             ),
             confidence = target.confidence,
-            rationale = "Auto-aim do kandydata czerwonego paska HP"
+            rationale = "Cel ${target.id}: korekta kierunku na podstawie ruchu"
         )
     }
 }
@@ -55,7 +68,7 @@ class AccessibilityAgentDispatcher(private val context: Context) : AgentActionDi
         if (!AgentControlState.isArmed()) {
             return ActionDispatchResult.Rejected("Sterowanie nieuzbrojone")
         }
-        if (nowMillis > plan.expiresAtMillis || nowMillis - state.updatedAtMillis > 1_000L) {
+        if (nowMillis > plan.expiresAtMillis || nowMillis - state.updatedAtMillis > 350L) {
             return ActionDispatchResult.Rejected("Nieaktualne dane lub plan")
         }
         if (plan.confidence < 0.40f) {
