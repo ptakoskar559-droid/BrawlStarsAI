@@ -12,6 +12,13 @@ object GameDecisionEngine {
         val fullBaseBars = Regex("100\\s*%").findAll(text).count()
         val hasSafeHealth = Regex("\\b60000\\b").containsMatchIn(text)
 
+        val matchResult = when {
+            "zwycięstwo" in text || "zwyciestwo" in text -> "Ekran końcowy: ZWYCIĘSTWO"
+            "porażka" in text || "porazka" in text -> "Ekran końcowy: PORAŻKA"
+            "remis" in text -> "Ekran końcowy: REMIS"
+            else -> null
+        }
+
         val mode = when {
             "napad" in text || "heist" in text || "sejf" in text ->
                 "Tryb: Napad"
@@ -25,6 +32,10 @@ object GameDecisionEngine {
             fullBaseBars >= 2 ->
                 "Tryb: prawdopodobnie Napad (dwa paski baz)"
             else -> "Tryb: nierozpoznany"
+        }
+
+        if (matchResult != null) {
+            return "$matchResult\nMecz zakończony — analiza zagrożeń wstrzymana"
         }
 
         val observation = when {
