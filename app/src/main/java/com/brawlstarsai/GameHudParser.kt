@@ -2,7 +2,7 @@ package com.brawlstarsai
 
 /** Extracts only explicit, high-signal HUD text. Missing or ambiguous values stay null. */
 object GameHudParser {
-    private val teamsPattern = Regex("(?:pozosta(?:ł|lo)\\s+dr[użz]yn|teams?\\s+left)\\s*:?\\s*(\\d+)", RegexOption.IGNORE_CASE)
+    private val teamsPattern = Regex("(?:pozosta(?:ł|lo)\\s+dru(?:ż|z)yn|teams?\\s+left)\\s*:?\\s*(\\d+)", RegexOption.IGNORE_CASE)
     private val timerPattern = Regex("\\b(\\d{1,2}):(\\d{2})\\b")
     private val percentPattern = Regex("\\b(\\d{1,3})\\s*%")
 
