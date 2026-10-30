@@ -102,13 +102,20 @@ class ScreenCaptureService : Service() {
                             }
                             if (now - lastVisionAt >= 1000L) {
                                 val detections = GameVisionAnalyzer.detectEntities(frame)
+                                val hud = GameHudParser.parse(ScreenVisionState.recognizedText)
                                 val worldState = worldStateEstimator.update(
-                                    PerceptionSnapshot(now, detections, HudState())
+                                    PerceptionSnapshot(
+                                        capturedAtMillis = now,
+                                        detections = detections,
+                                        hud = hud,
+                                        recognizedText = ScreenVisionState.recognizedText
+                                    )
                                 )
                                 val allyTracks = worldState.entities.count { it.type == EntityType.ALLY }
                                 val enemyTracks = worldState.entities.count { it.type == EntityType.ENEMY }
                                 ScreenVisionState.objectSummary = GameVisionAnalyzer.analyze(frame) +
-                                    "\\nŚledzone kandydaty HP: sojusznicy=$allyTracks, przeciwnicy=$enemyTracks"
+                                    "\nŚledzone kandydaty HP: sojusznicy=$allyTracks, przeciwnicy=$enemyTracks" +
+                                    "\n" + GameHudParser.summary(hud)
                                 ScreenVisionState.decisionSummary = GameDecisionEngine.analyze(
                                     ScreenVisionState.recognizedText,
                                     ScreenVisionState.objectSummary
