@@ -10,11 +10,17 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     private val screenCaptureLauncher =
@@ -37,9 +43,16 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 var message by remember { mutableStateOf("Widzenie ekranu jest wyłączone.") }
+                var preview by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        preview = ScreenVisionState.latestFrame
+                        delay(500)
+                    }
+                }
                 Surface(Modifier.fillMaxSize()) {
                     Column(
-                        modifier = Modifier.fillMaxSize().padding(24.dp),
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Text("BrawlStarsAI", style = MaterialTheme.typography.headlineMedium)
@@ -90,8 +103,19 @@ class MainActivity : ComponentActivity() {
                         Text("Stan przechwytywania: " + if (ScreenVisionState.active) "AKTYWNE" else "WYŁĄCZONE")
                         Text("Odebrane klatki: " + ScreenVisionState.frameCount)
                         Text("Rozdzielczość: " + ScreenVisionState.dimensions)
+                        Text("Podgląd przechwyconego obrazu:", style = MaterialTheme.typography.titleMedium)
+                        if (preview != null) {
+                            Image(
+                                bitmap = preview!!.asImageBitmap(),
+                                contentDescription = "Ostatnia przechwycona klatka ekranu",
+                                modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            Text("Brak klatki podglądu. Włącz widzenie ekranu i poczekaj chwilę.")
+                        }
                         HorizontalDivider()
-                        Text("W tym etapie aplikacja odbiera klatki ekranu lokalnie. Nie rozpoznaje jeszcze postaci ani przeciwników i nie steruje grą.")
+                        Text("Na tym etapie aplikacja pokazuje lokalny podgląd ekranu. Nie rozpoznaje jeszcze postaci ani przeciwników i nie steruje grą.")
                     }
                 }
             }
