@@ -19,12 +19,16 @@ import android.os.IBinder
 import android.os.SystemClock
 import android.util.DisplayMetrics
 import android.view.WindowManager
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 
 object ScreenVisionState {
     @Volatile var active: Boolean = false
     @Volatile var frameCount: Long = 0
     @Volatile var dimensions: String = "—"
     @Volatile var latestFrame: Bitmap? = null
+    @Volatile var recognizedText: String = "Oczekiwanie na obraz..."
 }
 
 class ScreenCaptureService : Service() {
@@ -39,6 +43,8 @@ class ScreenCaptureService : Service() {
     private var virtualDisplay: VirtualDisplay? = null
     private var imageReader: ImageReader? = null
     private var lastPreviewAt: Long = 0L
+    private var lastOcrAt: Long = 0L
+    private val textRecognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent == null) {
@@ -84,7 +90,13 @@ class ScreenCaptureService : Service() {
                     val now = SystemClock.elapsedRealtime()
                     // Keep the live preview lightweight: create at most two preview bitmaps per second.
                     if (now - lastPreviewAt >= 500L) {
-                        imageToBitmap(image)?.let { ScreenVisionState.latestFrame = it }
+                        imageToBitmap(image)?.let { frame ->
+                            ScreenVisionState.latestFrame = frame
+                            if (now - lastOcrAt >= 1000L) {
+                                runTextRecognition(frame)
+                                lastOcrAt = now
+                            }
+                        }
                         lastPreviewAt = now
                     }
                 } finally {
@@ -112,9 +124,29 @@ class ScreenCaptureService : Service() {
 
         ScreenVisionState.frameCount = 0
         ScreenVisionState.latestFrame = null
+        ScreenVisionState.recognizedText = "Analiza tekstu uruchamia się..."
         ScreenVisionState.dimensions = "${width} × ${height}"
         ScreenVisionState.active = virtualDisplay != null
         if (!ScreenVisionState.active) stopSelf()
+    }
+
+    private fun runTextRecognition(frame: Bitmap) {
+        // OCR runs on a reduced copy to limit CPU and memory use on the phone.
+        val ocrWidth = (frame.width / 2).coerceAtLeast(1)
+        val ocrHeight = (frame.height / 2).coerceAtLeast(1)
+        val ocrBitmap = Bitmap.createScaledBitmap(frame, ocrWidth, ocrHeight, true)
+        textRecognizer.process(InputImage.fromBitmap(ocrBitmap, 0))
+            .addOnSuccessListener { result ->
+                val text = result.text.trim()
+                ScreenVisionState.recognizedText =
+                    if (text.isBlank()) "Nie wykryto tekstu na ostatniej klatce." else text
+            }
+            .addOnFailureListener { error ->
+                ScreenVisionState.recognizedText = "Błąd OCR: ${error.localizedMessage ?: "nieznany"}"
+            }
+            .addOnCompleteListener {
+                if (ocrBitmap !== frame && !ocrBitmap.isRecycled) ocrBitmap.recycle()
+            }
     }
 
     private fun imageToBitmap(image: Image): Bitmap? {
@@ -169,6 +201,8 @@ class ScreenCaptureService : Service() {
     override fun onDestroy() {
         ScreenVisionState.active = false
         ScreenVisionState.latestFrame = null
+        ScreenVisionState.recognizedText = "Przechwytywanie wyłączone."
+        textRecognizer.close()
         virtualDisplay?.release()
         virtualDisplay = null
         imageReader?.setOnImageAvailableListener(null, null)
