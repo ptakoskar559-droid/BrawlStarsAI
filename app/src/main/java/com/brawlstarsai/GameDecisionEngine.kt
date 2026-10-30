@@ -35,7 +35,7 @@ object GameDecisionEngine {
                 "Analiza: brak pewnych sygnałów"
         }
 
-        return "$mode\\n$observation\\nWykryte obszary: czerwone ${redCount ?: "?"}, zielone ${greenCount ?: "?"}"
+        return "$mode\n$observation\nWykryte obszary: czerwone ${redCount ?: "?"}, zielone ${greenCount ?: "?"}"
     }
 
     private fun extractCount(summary: String, label: String): Int? {
