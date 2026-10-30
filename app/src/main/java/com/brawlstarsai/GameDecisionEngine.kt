@@ -10,6 +10,7 @@ object GameDecisionEngine {
         val redCount = extractCount(visionSummary, "czerwone")
         val greenCount = extractCount(visionSummary, "zielone")
         val fullBaseBars = Regex("100\\s*%").findAll(text).count()
+        val hasSafeHealth = Regex("\\b60000\\b").containsMatchIn(text)
 
         val mode = when {
             "napad" in text || "heist" in text || "sejf" in text ->
@@ -19,6 +20,8 @@ object GameDecisionEngine {
             "showdown" in text -> "Tryb: Showdown"
             "bounty" in text || "nagroda" in text -> "Tryb: Bounty"
             "hot zone" in text || "strefa" in text -> "Tryb: Hot Zone"
+            hasSafeHealth && fullBaseBars >= 1 ->
+                "Tryb: prawdopodobnie Napad (HP sejfu i pasek bazy)"
             fullBaseBars >= 2 ->
                 "Tryb: prawdopodobnie Napad (dwa paski baz)"
             else -> "Tryb: nierozpoznany"
@@ -27,15 +30,13 @@ object GameDecisionEngine {
         val observation = when {
             redCount == null || greenCount == null ->
                 "Analiza: zbieram dane"
-            redCount > 0 ->
-                "Uwaga: czerwone obszary ($redCount), niepotwierdzone jako przeciwnicy"
-            greenCount > 0 ->
-                "Analiza: zielone obszary ($greenCount), bez identyfikacji graczy"
+            redCount > 0 || greenCount > 0 ->
+                "Analiza: wykryto kolorowe obszary; nie potwierdzają one graczy ani zagrożeń"
             else ->
-                "Analiza: brak pewnych sygnałów"
+                "Analiza: brak wykrytych kandydatów na paski HP"
         }
 
-        return "$mode\n$observation\nWykryte obszary: czerwone ${redCount ?: "?"}, zielone ${greenCount ?: "?"}"
+        return "$mode\\n$observation\\nKandydaci na paski HP: czerwone ${redCount ?: "?"}, zielone ${greenCount ?: "?"}"
     }
 
     private fun extractCount(summary: String, label: String): Int? {
