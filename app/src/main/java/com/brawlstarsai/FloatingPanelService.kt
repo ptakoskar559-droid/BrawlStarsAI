@@ -23,6 +23,7 @@ class FloatingPanelService : Service() {
     private lateinit var status: TextView
     private lateinit var ocrStatus: TextView
     private lateinit var visionStatus: TextView
+    private lateinit var decisionStatus: TextView
     private val handler = Handler(Looper.getMainLooper())
     private val refreshOcr = object : Runnable {
         override fun run() {
@@ -34,6 +35,7 @@ class FloatingPanelService : Service() {
                     "OCR • widzenie wyłączone"
                 }
                 visionStatus.text = ScreenVisionState.objectSummary.take(260)
+                decisionStatus.text = ScreenVisionState.decisionSummary.take(180)
                 handler.postDelayed(this, 800L)
             }
         }
@@ -97,7 +99,7 @@ class FloatingPanelService : Service() {
             setPadding(0, 2, 0, 3)
         }
         container.addView(visionStatus)
-        container.addView(toggle)
+        decisionStatus = TextView(this).apply {\n            text = "Decyzja • oczekiwanie"\n            setTextColor(Color.rgb(245, 210, 130))\n            textSize = 9f\n            maxLines = 3\n            setPadding(0, 2, 0, 3)\n        }\n        container.addView(decisionStatus)\n        container.addView(toggle)
         container.addView(close)
 
         val windowType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
