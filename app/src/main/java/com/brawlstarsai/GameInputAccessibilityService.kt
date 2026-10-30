@@ -33,6 +33,7 @@ object AgentControlState {
 class GameInputAccessibilityService : AccessibilityService() {
     companion object {
         @Volatile private var instance: GameInputAccessibilityService? = null
+        private val gestureInFlight = AtomicBoolean(false)
 
         fun isConnected(): Boolean = instance != null
 
@@ -101,22 +102,31 @@ class GameInputAccessibilityService : AccessibilityService() {
             moveTo(sx, sy)
             lineTo(ex, ey)
         }
+        if (!gestureInFlight.compareAndSet(false, true)) {
+            AgentControlState.lastInputStatus = "Pominięto: poprzedni gest nadal trwa"
+            return false
+        }
         val stroke = GestureDescription.StrokeDescription(
             path,
             0L,
-            durationMillis.coerceIn(40L, 800L)
+            durationMillis.coerceIn(60L, 180L)
         )
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
         val accepted = dispatchGesture(gesture, object : GestureResultCallback() {
             override fun onCompleted(gestureDescription: GestureDescription?) {
+                gestureInFlight.set(false)
                 AgentControlState.lastInputStatus = "Gest wykonany"
             }
 
             override fun onCancelled(gestureDescription: GestureDescription?) {
+                gestureInFlight.set(false)
                 AgentControlState.lastInputStatus = "Gest anulowany"
             }
         }, mainHandler)
-        if (!accepted) AgentControlState.lastInputStatus = "Android odrzucił gest"
+        if (!accepted) {
+            gestureInFlight.set(false)
+            AgentControlState.lastInputStatus = "Android odrzucił gest"
+        }
         return accepted
     }
 
