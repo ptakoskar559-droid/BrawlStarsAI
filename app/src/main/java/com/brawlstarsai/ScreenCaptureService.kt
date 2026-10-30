@@ -48,6 +48,7 @@ class ScreenCaptureService : Service() {
     private var lastOcrAt: Long = 0L
     private var lastVisionAt: Long = 0L
     private var lastActionAt: Long = 0L
+    private val minimumAttackIntervalMillis = 850L
     private val textRecognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
     private val worldStateEstimator = NearestNeighborWorldStateEstimator()
     private val combatPlanner = BasicCombatPlanner()
@@ -121,7 +122,7 @@ class ScreenCaptureService : Service() {
                                 )
                                 val allyTracks = worldState.entities.count { it.type == EntityType.ALLY }
                                 val enemyTracks = worldState.entities.count { it.type == EntityType.ENEMY }
-                                if (AgentControlState.isArmed() && now - lastActionAt >= 170L) {
+                                if (AgentControlState.isArmed() && now - lastActionAt >= minimumAttackIntervalMillis) {
                                     val plan = combatPlanner.plan(worldState, now)
                                     if (plan.action.type == AgentActionType.ATTACK) {
                                         val result = actionDispatcher.dispatch(plan, worldState, now)
