@@ -36,7 +36,7 @@ object GameDecisionEngine {
                 "Analiza: brak wykrytych kandydatów na paski HP"
         }
 
-        return "$mode\\n$observation\\nKandydaci na paski HP: czerwone ${redCount ?: "?"}, zielone ${greenCount ?: "?"}"
+        return "$mode\n$observation\nKandydaci na paski HP: czerwone ${redCount ?: "?"}, zielone ${greenCount ?: "?"}"
     }
 
     private fun extractCount(summary: String, label: String): Int? {
