@@ -44,9 +44,11 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 var message by remember { mutableStateOf("Widzenie ekranu jest wyłączone.") }
                 var preview by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+                var recognizedText by remember { mutableStateOf(ScreenVisionState.recognizedText) }
                 LaunchedEffect(Unit) {
                     while (true) {
                         preview = ScreenVisionState.latestFrame
+                        recognizedText = ScreenVisionState.recognizedText
                         delay(500)
                     }
                 }
@@ -103,6 +105,8 @@ class MainActivity : ComponentActivity() {
                         Text("Stan przechwytywania: " + if (ScreenVisionState.active) "AKTYWNE" else "WYŁĄCZONE")
                         Text("Odebrane klatki: " + ScreenVisionState.frameCount)
                         Text("Rozdzielczość: " + ScreenVisionState.dimensions)
+                        Text("Odczyt tekstu z gry (OCR):", style = MaterialTheme.typography.titleMedium)
+                        Text(recognizedText)
                         Text("Podgląd przechwyconego obrazu:", style = MaterialTheme.typography.titleMedium)
                         if (preview != null) {
                             Image(
@@ -115,7 +119,7 @@ class MainActivity : ComponentActivity() {
                             Text("Brak klatki podglądu. Włącz widzenie ekranu i poczekaj chwilę.")
                         }
                         HorizontalDivider()
-                        Text("Na tym etapie aplikacja pokazuje lokalny podgląd ekranu. Nie rozpoznaje jeszcze postaci ani przeciwników i nie steruje grą.")
+                        Text("Aplikacja odczytuje tekst z obrazu lokalnie. Nie rozpoznaje jeszcze postaci ani przeciwników i nie steruje grą.")
                     }
                 }
             }
