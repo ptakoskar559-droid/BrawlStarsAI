@@ -28,13 +28,19 @@ data class HudState(
     val ammo: Int? = null,
     val superReady: Boolean? = null,
     val remainingSeconds: Int? = null,
-    val objectiveHealthPercent: Float? = null
+    val objectiveHealthPercent: Float? = null,
+    val remainingTeams: Int? = null,
+    val objectiveHealthPercentages: List<Float> = emptyList(),
+    val gameMode: String? = null,
+    val matchResult: String? = null
 ) {
     init {
         require(healthPercent == null || healthPercent in 0f..100f)
         require(objectiveHealthPercent == null || objectiveHealthPercent in 0f..100f)
         require(ammo == null || ammo >= 0)
         require(remainingSeconds == null || remainingSeconds >= 0)
+        require(remainingTeams == null || remainingTeams >= 0)
+        require(objectiveHealthPercentages.all { it in 0f..100f })
     }
 }
 
