@@ -30,6 +30,7 @@ object ScreenVisionState {
     @Volatile var latestFrame: Bitmap? = null
     @Volatile var recognizedText: String = "Oczekiwanie na obraz..."
     @Volatile var objectSummary: String = "Oczekiwanie na analizę obrazu..."
+    @Volatile var decisionSummary: String = "Decyzja: oczekiwanie na dane"
 }
 
 class ScreenCaptureService : Service() {
@@ -100,6 +101,7 @@ class ScreenCaptureService : Service() {
                             }
                             if (now - lastVisionAt >= 1000L) {
                                 ScreenVisionState.objectSummary = GameVisionAnalyzer.analyze(frame)
+                                ScreenVisionState.decisionSummary = GameDecisionEngine.analyze(\n                                    ScreenVisionState.recognizedText,\n                                    ScreenVisionState.objectSummary\n                                )
                                 lastVisionAt = now
                             }
                         }
@@ -132,6 +134,7 @@ class ScreenCaptureService : Service() {
         ScreenVisionState.latestFrame = null
         ScreenVisionState.recognizedText = "Analiza tekstu uruchamia się..."
         ScreenVisionState.objectSummary = "Analiza obrazu uruchamia się..."
+        ScreenVisionState.decisionSummary = "Decyzja: oczekiwanie na dane"
         ScreenVisionState.dimensions = "${width} × ${height}"
         ScreenVisionState.active = virtualDisplay != null
         if (!ScreenVisionState.active) stopSelf()
@@ -210,6 +213,7 @@ class ScreenCaptureService : Service() {
         ScreenVisionState.latestFrame = null
         ScreenVisionState.recognizedText = "Przechwytywanie wyłączone."
         ScreenVisionState.objectSummary = "Przechwytywanie wyłączone."
+        ScreenVisionState.decisionSummary = "Decyzja: przechwytywanie wyłączone"
         textRecognizer.close()
         virtualDisplay?.release()
         virtualDisplay = null
