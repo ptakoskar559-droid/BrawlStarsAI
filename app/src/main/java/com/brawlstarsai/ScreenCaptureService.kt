@@ -48,7 +48,7 @@ class ScreenCaptureService : Service() {
     private var lastOcrAt: Long = 0L
     private var lastVisionAt: Long = 0L
     private var lastActionAt: Long = 0L
-    private val minimumAttackIntervalMillis = 850L
+    private val minimumAttackIntervalMillis = 280L
     private val textRecognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
     private val worldStateEstimator = NearestNeighborWorldStateEstimator()
     private val combatPlanner = BasicCombatPlanner()
