@@ -50,6 +50,48 @@ object GameVisionAnalyzer {
         }
     }
 
+    /** Returns coarse team-coloured health-bar candidates in normalized screen coordinates. */
+    fun detectEntities(source: Bitmap): List<Detection> {
+        val targetWidth = 360
+        val targetHeight = (source.height * targetWidth.toFloat() / source.width).toInt().coerceAtLeast(1)
+        val scaled = Bitmap.createScaledBitmap(source, targetWidth, targetHeight, true)
+        try {
+            val pixels = IntArray(targetWidth * targetHeight)
+            scaled.getPixels(pixels, 0, targetWidth, 0, 0, targetWidth, targetHeight)
+            val candidates = mutableListOf<Candidate>()
+            for (y in 0 until targetHeight) {
+                var x = 0
+                while (x < targetWidth) {
+                    val color = barColor(pixels[y * targetWidth + x])
+                    if (color == null) { x++; continue }
+                    val start = x
+                    var end = x
+                    while (end < targetWidth && barColor(pixels[y * targetWidth + end]) == color) end++
+                    val runWidth = end - start
+                    if (runWidth in 9..78) candidates.add(Candidate((start + end) / 2, y, runWidth, color))
+                    x = end
+                }
+            }
+            val merged = mergeRows(candidates)
+            return merged.map { item ->
+                val halfWidth = item.width / 2f
+                val type = if (item.color == "czerwony") EntityType.ENEMY else EntityType.ALLY
+                Detection(
+                    type = type,
+                    bounds = BoundingBox(
+                        left = ((item.x - halfWidth).coerceAtLeast(0f) / targetWidth).coerceIn(0f, 1f),
+                        top = ((item.y - 3f).coerceAtLeast(0f) / targetHeight).coerceIn(0f, 1f),
+                        right = ((item.x + halfWidth).coerceAtMost(targetWidth.toFloat()) / targetWidth).coerceIn(0f, 1f),
+                        bottom = ((item.y + 3f).coerceAtMost(targetHeight.toFloat()) / targetHeight).coerceIn(0f, 1f)
+                    ),
+                    confidence = 0.45f
+                )
+            }
+        } finally {
+            if (scaled !== source) scaled.recycle()
+        }
+    }
+
     private fun barColor(pixel: Int): String? {
         val r = (pixel shr 16) and 0xff
         val g = (pixel shr 8) and 0xff
