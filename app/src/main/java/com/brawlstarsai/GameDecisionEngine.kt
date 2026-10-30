@@ -1,40 +1,41 @@
 package com.brawlstarsai
 
 /**
- * First, conservative decision layer.
- *
- * It does not control the game. It converts the currently available OCR and
- * color-bar heuristics into a human-readable recommendation. It deliberately
- * avoids claiming that a detected bar belongs to a specific player.
+ * Conservative decision layer based on OCR text and heuristic color regions.
+ * Color regions are not player detections and must never be reported as confirmed threats.
  */
 object GameDecisionEngine {
     fun analyze(ocrText: String, visionSummary: String): String {
         val text = ocrText.lowercase()
         val redCount = extractCount(visionSummary, "czerwone")
         val greenCount = extractCount(visionSummary, "zielone")
+        val fullBaseBars = Regex("100\\s*%").findAll(text).count()
 
         val mode = when {
+            "napad" in text || "heist" in text || "sejf" in text ->
+                "Tryb: Napad"
             "brawl ball" in text || "piłka" in text -> "Tryb: Brawl Ball"
             "gem grab" in text || "klejnot" in text -> "Tryb: Gem Grab"
             "showdown" in text -> "Tryb: Showdown"
-            "heist" in text || "sejf" in text -> "Tryb: Heist"
             "bounty" in text || "nagroda" in text -> "Tryb: Bounty"
             "hot zone" in text || "strefa" in text -> "Tryb: Hot Zone"
+            fullBaseBars >= 2 ->
+                "Tryb: prawdopodobnie Napad (dwa paski baz)"
             else -> "Tryb: nierozpoznany"
         }
 
-        val recommendation = when {
+        val observation = when {
             redCount == null || greenCount == null ->
-                "Decyzja: zbieram dane"
+                "Analiza: zbieram dane"
             redCount > 0 ->
-                "Decyzja: możliwe zagrożenie — obserwuj otoczenie"
+                "Uwaga: czerwone obszary ($redCount), niepotwierdzone jako przeciwnicy"
             greenCount > 0 ->
-                "Decyzja: wykryto zielone obszary — kontynuuj obserwację"
+                "Analiza: zielone obszary ($greenCount), bez identyfikacji graczy"
             else ->
-                "Decyzja: brak pewnych sygnałów — nie wykonuj ruchu automatycznie"
+                "Analiza: brak pewnych sygnałów"
         }
 
-        return "$mode\n$recommendation\nWykryte obszary: czerwone ${redCount ?: "?"}, zielone ${greenCount ?: "?"}"
+        return "$mode\\n$observation\\nWykryte obszary: czerwone ${redCount ?: "?"}, zielone ${greenCount ?: "?"}"
     }
 
     private fun extractCount(summary: String, label: String): Int? {
