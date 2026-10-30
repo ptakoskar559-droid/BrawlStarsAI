@@ -101,7 +101,10 @@ class ScreenCaptureService : Service() {
                             }
                             if (now - lastVisionAt >= 1000L) {
                                 ScreenVisionState.objectSummary = GameVisionAnalyzer.analyze(frame)
-                                ScreenVisionState.decisionSummary = GameDecisionEngine.analyze(\n                                    ScreenVisionState.recognizedText,\n                                    ScreenVisionState.objectSummary\n                                )
+                                ScreenVisionState.decisionSummary = GameDecisionEngine.analyze(
+                                    ScreenVisionState.recognizedText,
+                                    ScreenVisionState.objectSummary
+                                )
                                 lastVisionAt = now
                             }
                         }
