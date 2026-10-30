@@ -29,6 +29,7 @@ object ScreenVisionState {
     @Volatile var dimensions: String = "—"
     @Volatile var latestFrame: Bitmap? = null
     @Volatile var recognizedText: String = "Oczekiwanie na obraz..."
+    @Volatile var objectSummary: String = "Oczekiwanie na analizę obrazu..."
 }
 
 class ScreenCaptureService : Service() {
@@ -44,6 +45,7 @@ class ScreenCaptureService : Service() {
     private var imageReader: ImageReader? = null
     private var lastPreviewAt: Long = 0L
     private var lastOcrAt: Long = 0L
+    private var lastVisionAt: Long = 0L
     private val textRecognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -96,6 +98,10 @@ class ScreenCaptureService : Service() {
                                 runTextRecognition(frame)
                                 lastOcrAt = now
                             }
+                            if (now - lastVisionAt >= 1000L) {
+                                ScreenVisionState.objectSummary = GameVisionAnalyzer.analyze(frame)
+                                lastVisionAt = now
+                            }
                         }
                         lastPreviewAt = now
                     }
@@ -125,6 +131,7 @@ class ScreenCaptureService : Service() {
         ScreenVisionState.frameCount = 0
         ScreenVisionState.latestFrame = null
         ScreenVisionState.recognizedText = "Analiza tekstu uruchamia się..."
+        ScreenVisionState.objectSummary = "Analiza obrazu uruchamia się..."
         ScreenVisionState.dimensions = "${width} × ${height}"
         ScreenVisionState.active = virtualDisplay != null
         if (!ScreenVisionState.active) stopSelf()
@@ -202,6 +209,7 @@ class ScreenCaptureService : Service() {
         ScreenVisionState.active = false
         ScreenVisionState.latestFrame = null
         ScreenVisionState.recognizedText = "Przechwytywanie wyłączone."
+        ScreenVisionState.objectSummary = "Przechwytywanie wyłączone."
         textRecognizer.close()
         virtualDisplay?.release()
         virtualDisplay = null
