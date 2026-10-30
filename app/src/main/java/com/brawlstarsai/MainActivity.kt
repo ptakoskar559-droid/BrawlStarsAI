@@ -105,7 +105,7 @@ class MainActivity : ComponentActivity() {
                             onClick = {
                                 if (GameInputAccessibilityService.isConnected()) {
                                     AgentControlState.arm()
-                                    message = "Sterowanie uzbrojone. Agent nie wykona ruchu bez uruchomienia testu."
+                                    message = "Auto-aim uzbrojony. Włącz widzenie ekranu i testuj w przyjaznym meczu."
                                 } else {
                                     message = "Najpierw włącz usługę BrawlStarsAI w ustawieniach dostępności Androida."
                                 }
@@ -123,6 +123,7 @@ class MainActivity : ComponentActivity() {
                         ) { Text("AWARYJNE STOP") }
 
                         Text("Sterowanie: " + AgentControlState.lastInputStatus)
+                        Text("Prototyp: auto-aim do wykrytych czerwonych pasków HP. Ruch postaci nie jest jeszcze sterowany.")
 
                         OutlinedButton(
                             onClick = {
