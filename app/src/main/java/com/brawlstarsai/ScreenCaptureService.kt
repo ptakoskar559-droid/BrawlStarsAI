@@ -49,6 +49,8 @@ class ScreenCaptureService : Service() {
     private var lastVisionAt: Long = 0L
     private val textRecognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
     private val worldStateEstimator = NearestNeighborWorldStateEstimator()
+    private val combatPlanner = BasicCombatPlanner()
+    private val actionDispatcher by lazy { AccessibilityAgentDispatcher(this) }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent == null) {
@@ -113,6 +115,17 @@ class ScreenCaptureService : Service() {
                                 )
                                 val allyTracks = worldState.entities.count { it.type == EntityType.ALLY }
                                 val enemyTracks = worldState.entities.count { it.type == EntityType.ENEMY }
+                                if (AgentControlState.isArmed()) {
+                                    val plan = combatPlanner.plan(worldState, now)
+                                    if (plan.action.type == AgentActionType.ATTACK) {
+                                        val result = actionDispatcher.dispatch(plan, worldState, now)
+                                        AgentControlState.lastInputStatus = when (result) {
+                                            ActionDispatchResult.Executed -> "Agent: wysłano auto-aim"
+                                            is ActionDispatchResult.Rejected -> "Agent: " + result.reason
+                                            ActionDispatchResult.Cancelled -> "Agent: akcja anulowana"
+                                        }
+                                    }
+                                }
                                 ScreenVisionState.objectSummary = GameVisionAnalyzer.analyze(frame) +
                                     "\nŚledzone kandydaty HP: sojusznicy=$allyTracks, przeciwnicy=$enemyTracks" +
                                     "\n" + GameHudParser.summary(hud)
@@ -227,6 +240,7 @@ class ScreenCaptureService : Service() {
     }
 
     override fun onDestroy() {
+        AgentControlState.disarm("Przechwytywanie zatrzymane — agent wyłączony")
         ScreenVisionState.active = false
         ScreenVisionState.latestFrame = null
         ScreenVisionState.recognizedText = "Przechwytywanie wyłączone."
